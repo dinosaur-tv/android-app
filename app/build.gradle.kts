@@ -1,10 +1,13 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
+    // AGP 9 carries Kotlin support itself; the separate kotlin.android plugin is gone.
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 android {
     namespace = "com.dinotv.home"
-    compileSdk = 35
+    compileSdk = 37
+    buildToolsVersion = "37.0.0"
     defaultConfig {
         applicationId = "com.dinotv.home"
         minSdk = 26
@@ -34,7 +37,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     lint { abortOnError = true }
 }
+kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_17 } }
 dependencies { testImplementation("junit:junit:4.13.2") }

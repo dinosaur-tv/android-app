@@ -12,7 +12,7 @@ Google открывается во внешнем браузере. Кнопка
 
 ## Сборка
 
-JDK 17, Android SDK 35; телефон Android 8/API 26+.
+JDK 17, Android SDK 37 (сборка против 37, targetSdk остаётся 35); телефон Android 8/API 26+.
 
 ```bash
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
