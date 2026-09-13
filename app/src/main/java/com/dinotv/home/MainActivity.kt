@@ -61,16 +61,17 @@ class MainActivity : Activity() {
             settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             settings.mediaPlaybackRequiresUserGesture = true
             settings.userAgentString += " DinoHome/Android"
+            // A link that asks for a new window is dropped on the floor unless the web view
+            // is told such windows exist; that is how "open the bot" did nothing at all.
+            settings.setSupportMultipleWindows(true)
+            settings.javaScriptCanOpenWindowsAutomatically = false
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
         }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val target = request.url.toString()
                 if (HomeAddress.sameOrigin(home, target)) return false
-                if (request.isForMainFrame && request.url.scheme == "https") {
-                    try { startActivity(Intent(Intent.ACTION_VIEW, request.url).addCategory(Intent.CATEGORY_BROWSABLE)) }
-                    catch (_: Exception) { status.text = "Не удалось открыть браузер" }
-                }
+                if (request.isForMainFrame) openOutside(request.url)
                 return true
             }
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
@@ -86,6 +87,23 @@ class MainActivity : Activity() {
             }
         }
         web.webChromeClient = object : WebChromeClient() {
+            override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
+                // Nothing inside this app needs a second window, so a request for one is a
+                // link meant for another app — Telegram, most often. Hand it to the system.
+                if (!isUserGesture) return false
+                val probe = WebView(view.context)
+                probe.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(inner: WebView, request: WebResourceRequest): Boolean {
+                        openOutside(request.url)
+                        probe.destroy()
+                        return true
+                    }
+                }
+                (resultMsg.obj as? WebView.WebViewTransport)?.webView = probe
+                resultMsg.sendToTarget()
+                return true
+            }
+
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 chooser?.onReceiveValue(null)
                 chooser = callback
@@ -101,6 +119,17 @@ class MainActivity : Activity() {
         layout.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(layout)
         if (HomeAddress.normalize(home) != null) web.loadUrl(home) else configure()
+    }
+
+    /** Telegram, a browser, a mail client — whatever the system says owns this link. */
+    private fun openOutside(url: Uri) {
+        val scheme = url.scheme?.lowercase()
+        if (scheme != "https" && scheme != "tg" && scheme != "mailto") return
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, url))
+        } catch (_: Exception) {
+            status.text = "Не нашлось приложения, чтобы открыть ссылку"
+        }
     }
 
     private fun configure() {
