@@ -3,11 +3,23 @@
     <application android:allowBackup="false" android:usesCleartextTraffic="false"
         android:icon="@drawable/dino_icon" android:label="Dino Home" android:theme="@style/AppTheme">
         <activity android:name=".MainActivity" android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+            android:launchMode="singleTask" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <receiver android:name=".MusicWidget" android:exported="false" android:label="@string/widget_music">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_music_info" />
+        </receiver>
+        <receiver android:name=".RemoteWidget" android:exported="false" android:label="@string/widget_remote">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_remote_info" />
+        </receiver>
+        <receiver android:name=".NightWidget" android:exported="false" android:label="@string/widget_night">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_night_info" />
+        </receiver>
     </application>
 </manifest>

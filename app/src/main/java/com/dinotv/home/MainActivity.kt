@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -16,10 +17,10 @@ import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import org.json.JSONTokener
 
 /** A self-hosted console client. No JavaScript/native bridge or privileged remote permissions. */
 class MainActivity : Activity() {
@@ -28,6 +29,9 @@ class MainActivity : Activity() {
     private var home = ""
     private var failed = false
     private var chooser: ValueCallback<Array<Uri>>? = null
+    /** A widget's request waiting for the console to load. */
+    private var pending: WidgetAction? = null
+    private var loaded = false
     private val prefs by lazy { getSharedPreferences("dino-home", MODE_PRIVATE) }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -44,11 +48,10 @@ class MainActivity : Activity() {
                 insets
             }
         }
-        layout.addView(Button(this).apply { text = "Dino Home · Сервер"; setOnClickListener { configure() } })
         status = TextView(this).apply {
             setTextColor(Color.rgb(239, 230, 215))
             setPadding(24, 12, 24, 12)
-            text = "Введите адрес своего сервера"
+            visibility = View.GONE
             setOnClickListener { if (home.isNotEmpty()) web.loadUrl(home) }
         }
         layout.addView(status)
@@ -76,13 +79,21 @@ class MainActivity : Activity() {
             }
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 failed = false
-                status.text = "Подключаюсь…"
+                loaded = false
+                say("Подключаюсь…")
             }
-            override fun onPageFinished(view: WebView, url: String) { if (!failed) status.text = "" }
+            override fun onPageFinished(view: WebView, url: String) {
+                if (failed) return
+                say("")
+                loaded = true
+                pending?.let { run(it) }
+                pending = null
+                readNight()
+            }
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (request.isForMainFrame) {
                     failed = true
-                    status.text = "Нет соединения. Нажмите здесь, чтобы повторить."
+                    say("Нет соединения. Нажмите здесь, чтобы повторить.")
                 }
             }
         }
@@ -118,7 +129,40 @@ class MainActivity : Activity() {
         }
         layout.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(layout)
+        pending = Widgets.actionOf(this, intent)
         if (HomeAddress.normalize(home) != null) web.loadUrl(home) else configure()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val action = Widgets.actionOf(this, intent) ?: return
+        if (loaded) run(action) else pending = action
+    }
+
+    private fun run(action: WidgetAction) {
+        web.evaluateJavascript(action.script, null)
+        if (action == WidgetAction.NIGHT_TOGGLE) readNight()
+    }
+
+    /**
+     * Copies the night-mode state the console shows onto the night widget. The console needs a
+     * few seconds to load and save, so it is read more than once; repeats change nothing.
+     */
+    private fun readNight() {
+        for (delay in longArrayOf(3000, 6000, 10000, 15000)) web.postDelayed({
+            if (!loaded) return@postDelayed
+            web.evaluateJavascript(WidgetAction.NIGHT_STATE_SCRIPT) { raw ->
+                val state = (runCatching { JSONTokener(raw ?: "").nextValue() }.getOrNull() as? String).orEmpty()
+                Widgets.rememberNight(this, state.trim().take(40))
+            }
+        }, delay)
+    }
+
+    /** The status line only takes room when it has something to say. */
+    private fun say(text: String) {
+        status.text = text
+        status.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
     }
 
     /** Telegram, a browser, a mail client — whatever the system says owns this link. */
@@ -128,7 +172,7 @@ class MainActivity : Activity() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, url))
         } catch (_: Exception) {
-            status.text = "Не нашлось приложения, чтобы открыть ссылку"
+            say("Не нашлось приложения, чтобы открыть ссылку")
         }
     }
 
@@ -152,7 +196,7 @@ class MainActivity : Activity() {
                 }
                 home = next
                 prefs.edit().putString("home", home).apply()
-                status.text = "Подключаюсь…"
+                say("Подключаюсь…")
                 web.loadUrl(home)
                 dialog.dismiss()
             }

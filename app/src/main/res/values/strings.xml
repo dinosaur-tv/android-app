@@ -1,0 +1,11 @@
+<resources>
+    <string name="widget_music">Музыка</string>
+    <string name="widget_remote">Пульт</string>
+    <string name="widget_night">Ночной режим</string>
+    <string name="widget_music_description">Трек назад, пауза, вперёд на телевизоре</string>
+    <string name="widget_remote_description">Сразу открывает пульт</string>
+    <string name="widget_night_description">Включает и выключает ночной режим экрана</string>
+    <string name="music_previous">Предыдущий трек</string>
+    <string name="music_toggle">Играть или пауза</string>
+    <string name="music_next">Следующий трек</string>
+</resources>
